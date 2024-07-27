@@ -3,24 +3,20 @@ import { useState } from "react";
 import { EyeIcon, EyeOffIcon, Loader } from "lucide-react";
 import { useHookFormMask } from "use-mask-input";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { UserRegister } from "../schema";
-import { userRegisterSchema } from "../schema";
-import toast from "react-hot-toast";
 
 const Form = () => {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [isPasswordVisible2, setPasswordVisible2] = useState(false);
-  const [address, setAddress] = useState({ city: "", street: "", state: "" });
 
   const {
     handleSubmit,
     register,
     setValue,
     setError,
-    reset,
     formState: { isSubmitting, errors },
-  } = useForm<UserRegister>({ resolver: zodResolver(userRegisterSchema) });
+  } = useForm();
+
+  const [address, setAddress] = useState({ city: "", street: "", state: "" });
 
   const registerWithMask = useHookFormMask(register);
 
@@ -59,16 +55,10 @@ const Form = () => {
     if (!res.ok) {
       console.log(resData);
       for (const field in resData.errors) {
-        setError(field as keyof UserRegister, {
-          type: "manual",
-          message: resData.errors[field],
-        });
+        setError(field, { type: "manual", message: resData.errors[field] });
       }
-      toast.error("Erro ao cadastrar usuário");
     } else {
       console.log(resData);
-      toast.success("Usuário cadastrado com sucesso!");
-      reset();
     }
   }
 
@@ -76,7 +66,17 @@ const Form = () => {
     <form className="flex flex-col" onSubmit={handleSubmit(onSubmit)}>
       <div className="mb-2 flex flex-col">
         <label htmlFor="name">Nome Completo</label>
-        <input type="text" id="name" {...register("name")} />
+        <input
+          type="text"
+          id="name"
+          {...register("name", {
+            required: "O nome precisa ser preenchido.",
+            maxLength: {
+              value: 255,
+              message: "O nome deve ter no máximo 255 caracteres",
+            },
+          })}
+        />
         {/* Sugestão de exibição de erro de validação */}
 
         <p className="text-xs text-red-400 mt-1">
@@ -85,7 +85,18 @@ const Form = () => {
       </div>
       <div className="mb-2 flex-col flex">
         <label htmlFor="email">E-mail</label>
-        <input className="" type="email" id="email" {...register("email")} />
+        <input
+          className=""
+          type="email"
+          id="email"
+          {...register("email", {
+            required: "O email precisa ser preenchido",
+            pattern: {
+              value: /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/,
+              message: "E-mail inválido",
+            },
+          })}
+        />
         <p className="text-xs text-red-400 mt-1">
           {errors.email?.message as string}
         </p>
@@ -97,7 +108,13 @@ const Form = () => {
             type={isPasswordVisible ? "text" : "password"}
             id="password"
             className="w-full"
-            {...register("password")}
+            {...register("password", {
+              required: "A senha precisa ser preenchida",
+              minLength: {
+                value: 8,
+                message: "A senha deve ter no mínimo 8 caracteres",
+              },
+            })}
           />
 
           <span className="absolute right-3">
@@ -127,7 +144,21 @@ const Form = () => {
             type={isPasswordVisible2 ? "text" : "password"}
             id="confirm-password"
             className="w-full"
-            {...register("password_confirmation")}
+            {...register("password_confirmation", {
+              required: "É necessário a confirmação da senha!",
+              minLength: {
+                value: 8,
+                message:
+                  "A confirmação da senha deve ter no mínimo 8 caracteres.",
+              },
+              validate(value, formValue) {
+                if (value === formValue.password) {
+                  return true;
+                } else {
+                  return "As senhas devem coincidir.";
+                }
+              },
+            })}
           />
           <span className="absolute right-3">
             <button
@@ -154,7 +185,13 @@ const Form = () => {
         <input
           type="text"
           id="phone"
-          {...registerWithMask("phone", "(99) 99999-9999")}
+          {...registerWithMask("phone", "(99) 99999-9999", {
+            required: "O telefone precisa ser preenchido",
+            pattern: {
+              value: /^\(\d{2}\) \d{5}-\d{4}$/,
+              message: "Telefone inválido",
+            },
+          })}
         />
       </div>
       <p className="text-xs text-red-400 mt-1">
@@ -165,7 +202,13 @@ const Form = () => {
         <input
           type="text"
           id="cpf"
-          {...registerWithMask("cpf", "999.999.999-99")}
+          {...registerWithMask("cpf", "999.999.999-99", {
+            required: "O cpf precisa ser preenchido.",
+            pattern: {
+              value: /^\d{3}\.\d{3}\.\d{3}\-\d{2}$/,
+              message: "CPF inválido",
+            },
+          })}
         />
         <p className="text-xs text-red-400 mt-1">
           {errors.cpf?.message as string}
@@ -176,7 +219,13 @@ const Form = () => {
         <input
           type="text"
           id="cep"
-          {...registerWithMask("zipcode", "99999-999")}
+          {...registerWithMask("zipcode", "99999-999", {
+            required: "O CEP precisa ser preenchido.",
+            pattern: {
+              value: /^\d{5}\-\d{3}$/,
+              message: "CEP inválido",
+            },
+          })}
           onBlur={handleZipcodeBlur}
         />
         <p className="text-xs text-red-400 mt-1">
@@ -191,7 +240,6 @@ const Form = () => {
           id="address"
           disabled
           value={address.street}
-          {...register("address")}
         />
       </div>
 
@@ -204,7 +252,6 @@ const Form = () => {
             id="city"
             disabled
             value={address.city}
-            {...register("city")}
           />
         </div>
         <div className="flex flex-col">
@@ -224,7 +271,9 @@ const Form = () => {
           type="checkbox"
           id="terms"
           className="mr-2 accent-slate-500"
-          {...register("terms")}
+          {...register("terms", {
+            required: "Os termos e condições devem ser aceitos",
+          })}
         />
         <label
           className="text-sm  font-light text-slate-500 mb-1 inline"
