@@ -8,15 +8,17 @@ import { useForm } from "react-hook-form";
 const Form = () => {
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [isPasswordVisible2, setPasswordVisible2] = useState(false);
+  
+  const { handleSubmit, register, setValue, formState: { isSubmitting, errors } } = useForm();
+
   const [address, setAddress] = useState({ city: "", street: "", state: ""});
-  
-  const { handleSubmit, register, formState: { isSubmitting, errors } } = useForm();
-  
+
   const registerWithMask = useHookFormMask(register);
 
 
   async function handleZipcodeBlur(e: any) {
     const zipcode = e.target.value;
+    
     const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${zipcode}`)
 
     if (res.ok) {  
@@ -26,15 +28,20 @@ const Form = () => {
         street: data.street,
         state: data.state,
       })
-    }else{console.log("Vou nadaa")}
-
+        setValue('address', data.street),
+        setValue('city', data.city)
+    } else { console.log("Vou nadaa") }
     // https://brasilapi.com.br/api/cep/v2/{cep}
   }
 
   async function onSubmit(data: any) {
     console.log("Formulário enviado!")
     
-    const res = await fetch("https://apis.codante.io/api/register-user/register", { method: "POST", body: JSON.stringify(data) })
+    const res = await fetch("https://apis.codante.io/api/register-user/register", {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    })
     
     const resData = await res.json()
     console.log(resData)
@@ -69,9 +76,9 @@ const Form = () => {
         <label htmlFor="password">Senha</label>
         <div className="relative flex items-center">
           <input type={isPasswordVisible ? "text" : "password"} id="password" className="w-full" {...register("password", {
-            required: 'A senha precisa ser preenchida', maxLength: {
+            required: 'A senha precisa ser preenchida', minLength: {
               value: 8,
-              message: "A senha deve ter no Máximo 8 caracteres"
+              message: "A senha deve ter no mínimo 8 caracteres"
             }
           })} />
             
@@ -92,10 +99,18 @@ const Form = () => {
         <label htmlFor="confirm-password">Confirmar Senha</label>
         <div className="relative flex items-center">
           <input type={isPasswordVisible2 ? "text" : "password"} id="confirm-password" className="w-full" {...register('password_confirmation', {
-            required: "É necessário a confirmação da senha!", maxLength: {
+            required: "É necessário a confirmação da senha!", minLength: {
               value: 8,
-              message: "A confirmação da senha deve ter no máximo 8 caracteres."
-          }})} />
+              message: "A confirmação da senha deve ter no mínimo 8 caracteres."
+            },
+            validate(value, formValue) {
+              if (value === formValue.password) {
+                return true
+              } else {
+                return "As senhas devem coincidir.";
+              }
+            }
+          })} />
           <span className="absolute right-3">
             <button type="button" onClick={() => setPasswordVisible2(!isPasswordVisible2)}>
               {
@@ -122,10 +137,10 @@ const Form = () => {
 ?.message as string}</p>
       <div className="mb-2 flex flex-col">
         <label htmlFor="cpf">CPF</label>
-        <input type="text" id="cpf" {...registerWithMask('cpf', "999.999.999.99", {
+        <input type="text" id="cpf" {...registerWithMask('cpf', "999.999.999-99", {
           required: 'O cpf precisa ser preenchido.',
           pattern: {
-            value: /^\d{3}\.\d{3}\.\d{3}\.\d{2}$/,
+            value: /^\d{3}\.\d{3}\.\d{3}\-\d{2}$/,
             message: 'CPF inválido'
           }
         })} />
@@ -134,7 +149,7 @@ const Form = () => {
       </div>
       <div className="mb-2 flex flex-col">
         <label htmlFor="cep">CEP</label>
-        <input type="text" id="cep" {...registerWithMask('cep', "99999-999", {
+        <input type="text" id="cep" {...registerWithMask('zipcode', "99999-999", {
           required: 'O CEP precisa ser preenchido.', pattern: {
             value: /^\d{5}\-\d{3}$/,
             message: "CEP inválido"
